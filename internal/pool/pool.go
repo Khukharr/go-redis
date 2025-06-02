@@ -330,6 +330,15 @@ func (p *ConnPool) waitTurn(ctx context.Context) error {
 	default:
 	}
 
+	defer func() {
+		if c, found := ctx.Value("connectionWaitedInQueue").(chan<- struct{}); found {
+			select {
+			case c <- struct{}{}:
+			default: // prevent a full buffer from freezing the application
+			}
+		}
+	}()
+
 	timer := timers.Get().(*time.Timer)
 	timer.Reset(p.cfg.PoolTimeout)
 
